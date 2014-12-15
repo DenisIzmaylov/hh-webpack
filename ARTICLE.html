@@ -1,0 +1,573 @@
+После моего недавнего выступления на <a href="http://www.moscowjs.ru/">MoscowJS #17</a> с <a href="http://www.slideshare.net/moscowjs/webpack-7-moscowjs-17">одноимённым докладом</a> у многих возник интерес к этому инструменту. В рамках 11-го выпуска RadioJS, Миша Башкиров @bashmish рассказал, что решился попробовать его в своём новом проекте, об успешном опыте и множестве положительных эмоций. Но были озвучены вопросы и возникла дискуссия, в результате которой я решил написать эту статью, чтобы раскрыть основные тезисы с доклада и рассказать о том, что тогда не успел.
+Статья ориентирована, как на профессионалов, так и на тех, кто с похожими технологиями ещё не сталкивался.
+Итак, начнём.
+<habracut />
+
+<h3>7 бед</h3>
+Современный мир веб-разработки открывает перед нами, как невероятные возможности, так и проблемы.
+По масштабу их можно разделить на два:
+<ul>
+	<li>Глобальные проблемы отрасли веб-разработки.</li>
+	<li>Локальные проблемы наших проектов.</li>
+</ul>
+
+<h4>Глобальные проблемы</h4>
+<ol>
+	<li><u>Разрозненность решений</u>. HTML5 и JavaScript окончательно развязали нам руки. Новые и революционные решения создаются чуть ли не каждый день. У каждого своя специфика, преимущества и недостатки. При этом все они созданы для решения небольшого, по сути, круга задач:<ul>
+		<li>jQuery, Knockout, Angular, Marionette, React - если оттолкнуться от деталей, всё это создано для решения одних и тех же задач.</li>
+		<li>Underscore, lodash, Lazy, ES6 - во многом, для работы с данными.</li>
+		<li>MVC, MVVM, Flux - даже архитектурные паттерны созданы для решения одной задачи. </li></ul></li>
+	<li><u>Разнообразие версии</u> этих решений на порядок увеличивает масштаб озвученной проблемы:<ul>
+		<li>Один плагин требует jQuery 1.8, второй - jQuery 2.1. Что делать?</li>
+		<li>Angular 1.3 и Angular 2 - почти полностью разные.</li>
+		<li>Bootstrap 2.3 и Bootstrap 3.1 - компоненты, созданные для одной версии не встанут из коробки для другой.</li></ul></li>
+	<li><u>Форматы</u> для пре-процессинга (сюда же контейнеры) например:<ul>
+		<li>LESS, SCSS, SASS, Stylus - для стилей.</li>
+		<li>Handlebars, jade, EJS - для шаблонов.</li>
+		<li>JSON, JSON5, PJSON, XML - для данных.</li>
+		<li>CoffeeScript, JSX, ES6 - скрипты и т.д.</li></ul></li></ol>
+Как это отражается в реальной работе?
+
+<h4>Локальные проблемы</h4>
+<ol><li>Сложность роста проекта:<ul>
+	<li>Функциональная - создать прототип, добавить раздел, сделать форму, связать разделы между собой и т.д.</li>
+	<li>Технологическая - перейти на Bootstrap, подключить Leaflet, внедрить React и т.д.</li>
+</ul></li>
+	<li>Управление зависимостями. Когда в проекте появляются хотя бы 3 скрипта, начинается жонглирование - постоянно приходится задумываться:<ul>
+		<li>Загружены ли библиотеки?</li>
+		<li>А необходимые стили?</li>
+		<li>А шаблоны?</li>
+		<li>Если это jQuery-плагин, загружен ли для него jQuery?</li>
+		<li>А необходимые стили?</li>
+		<li>А шаблоны?</li>
+		<li>А какие ещё необходимы ему библиотеки?</li>
+	</ul></li>
+	<li>Управление версиями (суть проблемы описана выше).</li></ol>
+
+<h4>Какое решение?</h4>
+Наиболее оптимальное решение - разбивать код на изолированные модули.
+Исторически для этого сложилось два подхода - AMD и CommonJS. О них уже многое писали и говори, но приведу краткий обзор (кто знаком - может пропустить).
+
+<h5>AMD (Asynchronous Module Definition)</h5>
+Сводится к определению модуля через define() и вызову через require():
+<source lang="javascript">
+define(['jquery', 'products'], function ($, products) {
+	return {
+		show: function () {
+			products.forEach(function (item) {
+				$('.items').append(item.html);
+			});
+		}
+	};
+});
+</source>
+Достаточно удобно. Но при росте зависимостей это превращается в спагетти-код. Поэтому разработчики добавили CommonJS-обёртку:
+<source lang="javascript">
+define(function (require, module, exports) {
+	var $ = require('jquery');
+	var products = require('products');
+	module.exports = {
+		show: function () {
+			products.forEach(function (item) {
+				$('.items').append(item.html);
+			});
+		}
+	};
+});
+</source>
+Подробней об этом хорошо изложено в <a href="http://habrahabr.ru/post/152833/">статье</a> от @clslrns.
+
+<h5>CommonJS</h5>
+Нативно реализован на серверном JavaScript в Node.js/Rhino.
+Сводится к определению модуля через глобальную переменную и вызову через require():
+<source lang="javascript">
+var $ = require('jquery');
+var products = require('products');
+module.exports = {
+	show: function () {
+		products.forEach(function (item) {
+			$('.items').append(item.html);
+		});
+	}
+};
+</source>
+
+Основные преимущества перед AMD:<ul>
+	<li>Повышенная читаемость.</li>
+	<li>Упрощённая написание.</li>
+	<li>Изоморфность (один код, как для браузера, так и для сервера):
+<source lang="javascript">
+var _ = require('lodash');
+var data = require('./stock.json');
+module.exports = _.where(data, function (item) {
+	return item['count'] > 0;
+});
+</source>
+	</li>
+</ul>
+Подробней об этом <a href="https://www.youtube.com/watch?v=89bZfKSvNGo&list=PL95OM-7UObpESHZ9PRm00Tke5VZ6ku6Qr">рассказывал</a> в своём докладе Антон Шувалов из Rambler.
+
+Оба эти подхода позволяют:<ul>
+	<li>Создавать и использовать изолированные модули.</li>
+	<li>Не думать, о порядке загрузки.</li>
+	<li>Безопасно подключать сторонние решения.</li>
+	<li>Использовать разные версии библиотек.</li>
+	<li>Собирать из нескольких модулей один JS-файл.</li>
+</ul>
+
+Так что же теперь?
+Что воплотит наши фантазии в жизнь?
+Что лучшее мы имеем на сегодняшний день?
+
+<h3>Встречайте - webpack</h3>
+Вы только представьте. Любая логика. Любые форматы. Ваш проект быстро собирается. Ваш проект быстро загружается. Вы имеете самые развитые инструменты разработки. А теперь давайте взглянем подробней.
+
+<h4>Быстрое начало</h4>
+Для эксперимента, создадим директорию src и в ней простой скрипт index.js:
+<source lang="javascript">
+console.log('Hello Habrahabr!');
+</source>
+В директории assets будет наши выходные файлы. Это те самые файлы, которые мы можем выложить на наш веб-сервер, CDN и т.д.
+
+Глобально есть две стратегии использования webpack:<ul>
+	<li>через консоль (подходит для небольших проектов);</li>
+	<li>через скрипт в качестве Node.js-модуля.</li></ul>
+
+<h5>Использование через консоль.</h5>
+<source lang="bash">
+npm install webpack -g
+webpack src/index.js assets/bundle.js
+</source>
+
+<h5>Использование в качестве модуля.</h5>
+Если ещё не сделали это ранее - самое время начать: устанавливаем <a href="http://nodejs.org/">Node.js</a> и <a href="https://www.npmjs.com/">npm</a>.
+После этого в директории проекта создаём package.json. Это можно сделать командой:
+<source lang="bash">
+npm init
+</source>
+Теперь, когда у нас есть npm, добавляем к проекту webpack:
+<source lang="bash">
+npm install webpack —save-dev
+</source>
+Для сборки проекта создаём Node.js-скрипт. Например, build.js:
+<source lang="javascript">
+var path = require('path');
+var webpack = require('webpack');
+var config = {
+	context: path.join(__dirname, 'src'), // исходная директория
+	entry: './index', // файл для сборки, если несколько - указываем hash (entry name => filename)
+	output: {
+		path: path.join(__dirname, 'assets') // выходая директория
+	}
+};
+var compiler = webpack(config);
+compiler.run(function (err, stats) {
+	console.log(stats.toJson()); // по завершению, выводим всю статистику
+});
+</source>
+Запускаем сборку:
+<source lang="bash">
+node build
+</source>
+В обоих случаях мы получаем директорию assets и в ней bundle.js - это наш собранный файл, где будет сам index.js и все подключаемые им зависимости. В примере выше, он у меня был размером 1528 байт.
+Для его использования нам не нужен никакой дополнительный загрузчик, поэтому достаточно подключить только этот файл:
+<source lang="html">
+<!doctype html>
+<html>
+<body>
+	<script src="assets/bundle.js"></script>
+</body>
+</html>
+</source>
+Вот всё и заработало.
+Полноценно webpack может раскрыться, только через конфигурацию, поэтому далее я не буду приводить примеров для консоли, однако, открыть для себя всю магию консоли Вы без проблем можете в <a href="http://webpack.github.io/docs/cli.html">документации</a>.
+
+<h4>Плагины</h4>
+Одна из главных точек расширения webpack - это плагины. Они позволяют менять 'на лету' логику сборки, алгоритм поиска модулей, иными словами, залезать в самое сердце процесса сборки.
+Подключение происходит через добавление секции plugins в передаваемых настройках.
+
+Примеры плагинов:<ul>
+	<li><u>webpack.optimize.UglifyJsPlugin</u> - минификации кода с использованием UglifyJS.
+		Настройка (build.js):
+<source lang="javascript">
+...
+	plugins: [
+		new webpack.optimize.UglifyJsPlugin(),
+...
+</source>
+		После добавления этих строк, файл bundle.js уменьшается с 1528 до 246 байт.
+
+	</li>
+	<li><u>webpack.optimize.DedupePlugin</u> - удаление дубликатов модулей. Если Вы, например, используете сторонние Node.js-библиотеки, то с большой вероятностью некоторые используемые ими модули могут быть дублированны. Этот плагин находит дубликаты модулей и удаляет их. Это не влияет на стабильность кода, но существенно может сократить размер собранного файла.
+
+	</li>
+	<li><u>webpack.DefinePlugin</u> - определение констант и выражений внутрь кода. Как в старом добром C++.
+		Настройка (build.js):
+<source lang="javascript">
+...
+	plugins: [
+		DefinePlugin({
+			'NODE_ENV': JSON.stringify('production')
+		}),
+...
+</source>
+		Использование (index.js):
+<source lang="javascript">
+if (NODE_ENV === 'production') {
+	console.log('There is Production mode');
+} else {
+	console.log('There is Development mode');
+}
+</source>
+		При сборке этот код будет собран в следующий вид:
+<source lang="javascript">
+if (true) {
+	console.log('There is Production mode');
+} else  {
+	console.log('There is Development mode');
+}
+</source>
+		А если включена минификация:
+<source lang="javascript">
+console.log('There is Production mode');
+</source>
+		Это достаточно удобный функционал для того, чтобы разделять код на слои и делать продакшн-код ещё более чистым и быстрым.
+
+	</li>
+	<li><u>BowerWebpackPlugin</u> - сторонний плагин, который позволяет осуществить прозрачное подключение <a href="http://bower.io/">bower</a>-пакетов.
+		Установка:
+<source lang="bash">
+npm install bower-webpack-plugin --save-dev
+</source>
+		Настройка (build.js):
+<source lang="javascript">
+...
+	plugins: [
+		new BowerWebpackPlugin({
+			modulesDirectories: ['bower_components'],
+			manifestFiles: ['bower.json', '.bower.json'],
+			includes: /.*/,
+			excludes: /.*\.less$/
+		}),
+...
+</source>
+		Использование:
+<source lang="bash">
+bower install jquery
+</source>
+		index.js:
+<source lang="javascript">
+var $ = require('jquery');
+if (NODE_ENV === 'production') {
+	$('body').html('There is Production mode.');
+} else {
+	$('body').html('There is Development mode.');
+}
+</source>
+	</li>
+	<li>ExtractTextPlugin позволяет извлеч содержимое всех подключаемых CSS-файлов в один отдельный CSS-файл. Это позволяет ускорить загрузку, поскольку CSS загружается асинхронно (параллельно JS-файлам). Рекомендуется использовать при большом количестве стилей.
+		Установка:
+<source lang="bash">
+npm install css-loader style-loader extract-text-webpack-plugin—save-dev
+</source>
+		Примечание: пакеты css-loader и style-loader - это загрузчики для загрузки и подключения в DOM стилей. Подробней о них речь пойдёт дальше.
+
+		Настройка (build.js):
+<source lang="javascript">
+...
+	module: {
+		loaders: [
+			{
+				test: /\.css$/,
+				loader: ExtractTextPlugin.extract('style-loader', 'css-loader')
+			},
+...
+		],
+	},
+	plugins: [
+		new ExtractTextPlugin('style.css'),
+...
+</source>
+		Использование:<ul>
+			<li>src/header.css:
+<source lang="css">
+h1 {
+	color: #036;
+}
+</source>
+			</li>
+			<li>src/header.js:
+<source lang="javascript">
+var $ = require('jquery');
+require('./header.css');
+$('body').prepend('<h1>Hello, Habrahabr</h1>');
+</source>
+			</li>
+			<li>src/index.css:
+<source lang="css">
+body {
+	background: #eee;
+}
+</source>
+			</li>
+			<li>src/index.js:
+<source lang="javascript">
+var $ = require('jquery');
+require('./index.css');
+require('./header');
+if (NODE_ENV === 'production') {
+	$('body').append('There is Production mode.');
+} else {
+	$('body').append('There is Development mode.');
+}
+</source>
+			</li>
+			<li>index.html:
+<source lang="html">
+<!doctype html>
+<html>
+<head>
+	<link rel="stylesheet" href="assets/styles.css" />
+</head>
+<body>
+	<script src="assets/bundle.js"></script>
+</body>
+</html>
+</source>
+			</li></ul>
+	</li>
+</ul>
+<h4>Загрузчики</h4>
+Благодаря этой точке расширения webpack обеспечивает прозрачное подключение любой статики - CSS, LESS, SASS, Stylus, CoffeeScript, JSX, JSON, шрифтов, графики, шаблонов и т.д. Вы просто указываете имя файла в require(), а загрузчики сами обеспечивают все необходимые операции для его подключения.
+Подключаете CSS? Загрузчики позаботятся обо всём сами - загрузят CSS-данные, а в момент исполнения добавят в DOM элемент <style></style> с этими стилями.
+Пишете модули в LESS, CoffeeScript или JSX? Загрузчики сами выполнят весь пре-процессинг при сборке - Вам достаточно просто указать имя файла.
+
+<h5>Пример использования загрузчиков</h5>
+Установка:
+<source lang="bash">
+npm install style-loader css-loader json-loader handlebars-loader url-loader --save-dev
+</source>
+Настройка (build.js):
+<source lang="javascript">
+...
+	module: {
+		loaders: [
+			{test: /\.css$/, loader: 'style-loader!css-loader'},
+			{test: /\.json$/, loader: 'json-loader'},
+			{test: /\.hbs$/, loader: 'handlebars-loader'},
+			{
+				test: /\.(eot|woff|ttf|svg|png|jpg)$/,
+				loader: 'url-loader?limit=30000&name=[name]-[hash].[ext]'
+			},
+...
+</source>
+Загрузчики указываются в порядке справа налево, т.е. для CSS - сначала используется css-loader, а его результат передаётся в style-loader, который помещает загруженные данные, как блок &lt;style /&gt;.
+url-loader - особенный загрузчик. В данном примере, если файлы графики и шрифтов имеют размер до 30кб, он вставляет их в виде data:uri. Если же они превышают этот объем, то он сохраняет их в выходную директорию с заданным шаблоном имени, где hash - уникальное значение для файла. Такой подход позволяет с одной стороны - избежать дополнительных обращений к серверу (даже при Keep-Alive, это дорогостоящая операция), с другой - избежать проблем с кэшированием одноимённых файлов (этот подход известен, как static freeze).
+Использование:<ul>
+	<li>src/customer.json:
+<source lang="javascript">
+{"name": "Habrahabr"}
+</source>
+	</li>
+	<li>src/header.hbs:
+<source lang="html">
+<h1>Hello, dear {{name}}</h1>
+</source>
+	</li>
+	<li>src/header.js:
+<source lang="javascript">
+var $ = require('jquery');
+// загружаем данные из JSON-файла в объект:
+var customer = require('./customer.json');
+// загружаем и компилируем шаблон:
+var Header = require('./header.hbs');
+require('./header.css');
+// отдаём данные в шаблон и выводим полученный HTML
+$('body').prepend(Header(customer));
+</source>
+	</li>
+</ul>
+
+<h5>Интеграция с React JSX</h5>
+webpack отлично дружит с React и позже станет ясно почему, а пока просто приведу пример подключения JSX-скриптов.
+Установка:
+<source lang="bash">
+npm install react jsx-loader —save-dev
+</source>
+Настройка (build.js):
+<source lang="javascript">
+...
+	resolve: {
+		extensions: ['', '.js', '.jsx'],
+	},
+	module: {
+		loaders: [
+			{test: /\.jsx$/, loader: 'jsx-loader'},
+...
+</source>
+Использование:<ul>
+	<li>src/toolbar.jsx:
+<source lang="javascript">
+var React = require('react');
+module.exports = React.createClass({displayName: 'Toolbar',
+	render: function () {
+		return (
+			<div>
+				<button>Button 1</button>
+			</div>
+		);
+	}
+});
+</source>
+	</li>
+	<li>src/index.js:
+<source lang="javascript">
+var $ = require('jquery');
+var React = require('react');
+var Toolbar = require('./toolbar');
+require('./index.css');
+require('./header');
+React.render(
+	React.createElement(Toolbar),
+	document.getElementById('toolbar')
+);
+if (NODE_ENV === 'production') {
+	$('body').append('There is Production mode.');
+} else {
+	$('body').append('There is Development mode.');
+}
+</source>
+	</li>
+	<li>index.html:
+<source lang="html">
+<!doctype html>
+<html>
+<body>
+	<div id="toolbar"></div>
+	<script src="assets/bundle.js"></script>
+</body>
+</html>
+</source>
+	</li></ul>
+
+<h4>Инструмент webpack-dev-server</h4>
+Позволяет видеть обновления на странице без пересборки проекта. Просто, как магия.
+Как это работает:<ol>
+	<li>создаётся веб-сервер на основе вашей assets-директории;</li>
+	<li>при загрузке файла сборки, устанавливается соединение через socket.io;</li>
+	<li>как только вы что-то изменили - автоматически обновляется открытая страница</li></ol>
+
+<h5>Запуск через консоль.</h5>
+<source lang="bash">
+npm install webpack-dev-server -g
+webpack-dev-server --content-base assets/
+</source>
+
+<h5>Запуск через скрипт</h5>
+Установка:
+<source lang="bash">
+npm install webpack-dev-server —save-dev
+</source>
+Использование:<ol>
+	<li>Конфигурацию выносим в webpack.config.js, оставляя в builds.js лишь:
+<source lang="javascript">
+var webpack = require('webpack');
+var config = require('./webpack.config');
+var compiler = webpack(config);
+compiler.run(function () {
+// stay silent
+});
+</source>
+	</li>
+	<li>Создаём dev-server.js:
+<source lang="javascript">
+var WebpackDevServer = require('webpack-dev-server');
+var config = require('./webpack.config.js');
+var devServer = new WebpackDevServer(
+	webpack(config),
+	{
+		contentBase: __dirname,
+		publicPath: '/assets/'
+	}
+).listen(8088, 'localhost');
+</source>
+	</li>
+	<li>Запускаем:
+<source lang="bash">
+node dev-server
+</source>
+	</li>
+	<li>Открываем: <a href="http://localhost:8088/webpack-dev-server/">http://localhost:8088/webpack-dev-server/</a>
+		Перед нами появится index.html со строкой статуса в шапке: “App ready”. Если сейчам мы что-то изменим в коде, страница автоматически обновится.</li>
+</ol>
+
+<h4>Hot Module Replacement - чистая магия</h4>
+Позволяет обновлять, удалять и добавлять модули в реальном режиме, т.е. даже без перезагрузки страницы (тем самым сохранив её состояние). Мало того, что это безумно весело, это позволяет на порядок быстрей прототипировать веб-приложения и разрабатывать сложные Single Page Applications.
+<a href="http://stackoverflow.com/questions/24581873/what-exactly-is-hot-module-replacement-in-webpack">Развёрнутый ответ автора на вопрос What exactly is Hot Module Replacement in Webpack?</a>
+
+Как это работает в связке с React:<ol>
+	<li>Вы открываете на одном мониторе - IDE, на втором - браузер.</li>
+	<li>В окне IDE изменяете код своего React-компонента, сохраняете.</li>
+	<li>В это время на страницу через открытое socket-соединение передаётся информация только об изменённой части.</li>
+	<li>Происходит “горячая” замена компонента (unmount + mount).</li>
+	<li>На экране автоматические обновляется изменённый компонент.</li></ol>
+Подробней об этом можно почитать на <a href="http://gaearon.github.io/react-hot-loader/">странице разработчика расширения</a>.
+Или посмотреть на этом видео:
+<video>http://vimeo.com/100010922</video>
+Невероятно, ведь так?
+
+<h4>Chunks</h4>
+webpack позволяет разбивать собранный код на части. Например, Вы можете выделить общий код для всех страниц в assets/common.js, а для каждой отдельной страницы делать свой assets/feed.js, assets/products.js и т.д. Таким образом, при первой загрузке, common.js будет закеширован, а для каждой из страниц Вашего проекта будет достаточно догрузить небольшой файл с нужным для неё чанком. Забегая вперёд, Facebook использует порядка 50 чанков на странице выдачи, в то время, как Instagram в среднем по два, например - common.js и Feed.js.
+
+<h4>Производительность и анализ</h4>
+По моим личным наблюдениям и наблюдением коллег производительность сборки у webpack на порядок выше аналогов. Во многом за счёт применения “умной” сборки и AST-парсинга.
+Для тонкой и более эффективной оптимизации webpack предлагает развитую статистику по результату сборки Вашего проекта и <a href="http://webpack.github.io/analyse/">инструменты для визуального анализа</a>.
+
+<h4>Подведём итоги</h4>
+Итак, мы рассмотрели:<ul>
+	<li>Быстрый старт</li>
+	<li>Плагины и их примеры:<ul>
+		<li>webpack.optimize.UglifyJsPlugin</li>
+		<li>webpack.optimize.DedupePlugin</li>
+		<li>webpack.DefinePlugin</li>
+		<li>BowerWebpackPlugin</li>
+		<li>ExtractTextPlugin</li>
+	</ul></li>
+	<li>Загрузчики:<ul>
+		<li>Работа со статикой</li>
+		<li>Подключение React JSX</li>
+	</ul></li>
+	<li>webpack-dev-server</li>
+	<li>Hot Module Replacement</li>
+	<li>Chunks</li>
+	<li>Производительность и анализ</li>
+</ul>
+
+<h4>Миграция со старых сборщиков</h4>
+Помимо CommonJS, из коробки поддерживается и AMD - это позволяет быстро и безболезненно перебраться с Require.js.
+Миграция с Browserify происходит также легко и волшебно, как и всё остальное - для этого в документации даже есть раздел <a href="http://webpack.github.io/docs/webpack-for-browserify-users.html">webpack for Browserify users</a>.
+
+<h4>Как насчёт поддержки?</h4>
+По личному опыту - на вопросы в github ответили в течении дня. Разработчики очень открытые и активные. Делал pull-request'ы - автор принял их на следующий день. Динамика каммитов на github <a href="https://github.com/webpack/webpack/graphs/contributors">впечатляет</a>.
+
+<h4>Так значит можно доверять?</h4>
+Безусловно. Например, команда Facebook использует webpack для веб-интерфейса Instagram. Если быть честным, то делая реверс-инжиниринг этого проекта я и наткнулся на webpack.
+Кроме этого, Twitter использует webpack для своих проектов, о чём на конференции Fronteers 2014 <a href="https://github.com/web-standards-ru/web-standards-up/blob/master/2014-10-10_fronteers.md">рассказал</a> Nicholas Gallagher.
+
+<h4>Резюме</h4><ol>
+	<li>Современный мир веб-разработки открывает перед нами, как невероятные возможности, так и проблемы.</li>
+	<li>Основная проблема - постоянная эволюция (рост количества и качества как решений, так и проектов).</li>
+	<li>Это ставит перед нами задачи - быть гибкими, открытыми, быстрыми и эффективными.</li>
+	<li>Изолированные модули и единый интерфейс их взаимодействия - это то, без чего невозможно развитие и то, что делает из JavaScript полноценную экосистему.</li>
+	<li>CommonJS стал стандартом де-факто в организации модулей (npm, Bower).</li>
+	<li>На сегодняшний день, webpack - самая мощная платформа для сборки и оптимизации, которая учитывает весь опыт предыдущего поколения сборщиков (Require.js, Browserify) и реализует его наиболее эффективным способом. webpack может легко работать как с таскерами вроде Grunt и gulp, так и во многих случаях заменить их.</li>
+	<li>webpack открывает перед нами мир npm (112 393 пакетов) и bower (20 694 пакетов), делая их использование таким же простым и прозрачным, как и использование своих модулей.</li>
+</ol>
+
+Призываю всех нас держать руку на пульсе. Мыслить глобально. Всегда развиваться и видеть, что творится в мире. Быть смелей, активней, экспериментировать. Изучать, как работают успешные проекты. Не держаться, а делиться и обмениваться своими открытиями, результатами и решениями. Это сделает каждого из нас быстрей, умней и эффективней.
+Благодарю за внимание.
+
+<h4>Ссылки</h4>
+Документация по webpack - <a href="http://webpack.github.io/docs/">http://webpack.github.io/docs/</a>
+Скачать и попробовать - <a href="https://github.com/webpack/webpack">https://github.com/webpack/webpack</a>
+Пример из статьи - <a href="https://github.com/DenisIzmaylov/hh-webpack">https://github.com/DenisIzmaylov/hh-webpack</a>
