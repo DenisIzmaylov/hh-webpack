@@ -2,10 +2,7 @@
   "name": "hh-webpack",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
+  "main": "build.js",
   "author": "Denis Izmaylov (https://github.com/DenisIzmaylov)",
   "license": "GPL",
   "devDependencies": {
