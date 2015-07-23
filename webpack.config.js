@@ -16,7 +16,7 @@ module.exports = {
             //    test: /\.css$/,
             //    loader: ExtractTextPlugin.extract('style-loader', 'css-loader')
             //},
-            {text: /\.jsx$/, loader: 'jsx-loader'},
+            {test: /\.jsx$/, loader: 'jsx-loader'},
             {test: /\.css$/, loader: 'style-loader!css-loader'},
             {test: /\.json$/, loader: 'json-loader'},
             {test: /\.hbs$/, loader: 'handlebars-loader'},
