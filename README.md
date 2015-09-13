@@ -1,7 +1,7 @@
 webpack: 7 troubles and one solution
 ====================================
 
-Example for the article at Habrahabr.
+Example for [the article at Habrahabr](http://habrahabr.ru/post/245991/).
 
 Installation
 ------------
